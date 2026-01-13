@@ -97,53 +97,83 @@ public class MakeMyTripFlightPage {
 	        actions.moveByOffset(10, 10).click().perform();}
 	    
 	        public void selectDates2026LowestPricePlus3() {
-	    // Navigate until year 2026 appears
-	    while (!calendarHeader.getText().contains("2026")) {
-	        wait.until(ExpectedConditions.elementToBeClickable(nextMonth)).click();
-	    }
+	   // Navigate till 2026
+        while (!calendarHeader.getText().contains("2026")) {
+            wait.until(ExpectedConditions.elementToBeClickable(nextMonth)).click();
+            wait.until(ExpectedConditions.visibilityOf(calendarHeader));
+        }
 
-	    int lowestPrice = Integer.MAX_VALUE;
-	    WebElement lowestPriceDate = null;
+        int lowestPrice = Integer.MAX_VALUE;
+        WebElement lowestPriceDate = null;
 
-	    // Find the lowest priced date
-	    for (WebElement date : enabledDates) {
+        // Re-fetch visible enabled dates
+        List<WebElement> dates = wait.until(
+                ExpectedConditions.visibilityOfAllElements(enabledDates)
+        );
 
-	        String dateText = date.getText();
+        for (WebElement date : dates) {
+            try {
+                // Price is inside child <p> or <span>
+                WebElement priceElement = date.findElement(
+                        By.xpath(".//p[contains(@class,'price') or contains(@class,'todayPrice')]")
+                );
 
-	        // Example dateText: "15\n₹4,321"
-	        if (dateText.contains("₹")) {
-	            String priceText = dateText
-	                    .replaceAll("[^0-9]", ""); // extract only numbers
+                String priceText = priceElement.getText()
+                        .replace("₹", "")
+                        .replace(",", "")
+                        .trim();
 
-	            int price = Integer.parseInt(priceText);
+                if (!priceText.isEmpty()) {
+                    int price = Integer.parseInt(priceText);
 
-	            if (price < lowestPrice) {
-	                lowestPrice = price;
-	                lowestPriceDate = date;
-	            }
-	        }
-	    }
+                    if (price < lowestPrice) {
+                        lowestPrice = price;
+                        lowestPriceDate = date;
+                    }
+                }
 
-	    // Click lowest price departure date
-	    if (lowestPriceDate != null) {
-	        lowestPriceDate.click();
-	    }
+            } catch (NoSuchElementException e) {
+                // Date without price – ignore
+            }
+        }
 
-	    // Select return date after 3 days
-	    
-	    enabledDates.get(enabledDates.indexOf(lowestPriceDate) + 3).click();}
-	        public void clickSearch() {
+        if (lowestPriceDate == null) {
+            throw new RuntimeException("No priced date found in calendar for 2026");
+        }
 
-	            // Close calendar / price overlay
-	            clickAnywhereActions();
+        // Select departure date
+        lowestPriceDate.click();
 
-	            // Wait for Search button to be clickable
-	            wait.until(ExpectedConditions.visibilityOf(searchBtn));
-	            wait.until(ExpectedConditions.elementToBeClickable(searchBtn));
+        // Get fresh dates after selecting departure
+        List<WebElement> updatedDates = wait.until(
+                ExpectedConditions.visibilityOfAllElements(enabledDates)
+        );
 
-	            // JS click to avoid interception
-	            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn);
-	        }
+        int departIndex = updatedDates.indexOf(lowestPriceDate);
+
+        // Select return date +3 days safely
+        if (departIndex + 3 < updatedDates.size()) {
+            updatedDates.get(departIndex + 3).click();
+        } else {
+            throw new RuntimeException("Return date not available");
+        }
+    }
+
+    
+
+        public void clickSearch() {
+
+            // Close calendar / price overlay
+            clickAnywhereActions();
+
+            // Wait for Search button to be clickable
+            wait.until(ExpectedConditions.visibilityOf(searchBtn));
+            wait.until(ExpectedConditions.elementToBeClickable(searchBtn));
+
+            // JS click to avoid interception
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", searchBtn);
+        }
+
 
 
 }
