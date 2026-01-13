@@ -98,65 +98,77 @@ public class MakeMyTripFlightPage {
 	    
 	        public void selectDates2026LowestPricePlus3() {
 	   // Navigate till 2026
-        while (!calendarHeader.getText().contains("2026")) {
-            wait.until(ExpectedConditions.elementToBeClickable(nextMonth)).click();
-            wait.until(ExpectedConditions.visibilityOf(calendarHeader));
-        }
+    while (!calendarHeader.getText().contains("2026")) {
+        wait.until(ExpectedConditions.elementToBeClickable(nextMonth)).click();
+        wait.until(ExpectedConditions.visibilityOf(calendarHeader));
+    }
 
-        int lowestPrice = Integer.MAX_VALUE;
-        WebElement lowestPriceDate = null;
+    int lowestPrice = Integer.MAX_VALUE;
+    WebElement lowestPriceDate = null;
 
-        // Re-fetch visible enabled dates
-        List<WebElement> dates = wait.until(
-                ExpectedConditions.visibilityOfAllElements(enabledDates)
-        );
+    List<WebElement> dates = wait.until(
+            ExpectedConditions.visibilityOfAllElements(enabledDates)
+    );
 
-        for (WebElement date : dates) {
-            try {
-                // Price is inside child <p> or <span>
-                WebElement priceElement = date.findElement(
-                        By.xpath(".//p[contains(@class,'price') or contains(@class,'todayPrice')]")
-                );
+    for (WebElement date : dates) {
+        try {
+            WebElement priceElement = date.findElement(
+                    By.xpath(".//p[contains(@class,'price') or contains(@class,'todayPrice')]")
+            );
 
-                String priceText = priceElement.getText()
-                        .replace("₹", "")
-                        .replace(",", "")
-                        .trim();
+            String priceText = priceElement.getText()
+                    .replace("₹", "")
+                    .replace(",", "")
+                    .trim();
 
-                if (!priceText.isEmpty()) {
-                    int price = Integer.parseInt(priceText);
+            if (!priceText.isEmpty()) {
+                int price = Integer.parseInt(priceText);
 
-                    if (price < lowestPrice) {
-                        lowestPrice = price;
-                        lowestPriceDate = date;
-                    }
+                if (price < lowestPrice) {
+                    lowestPrice = price;
+                    lowestPriceDate = date;
                 }
-
-            } catch (NoSuchElementException e) {
-                // Date without price – ignore
             }
+
+        } catch (NoSuchElementException e) {
+            // Ignore dates without price
         }
+    }
 
-        if (lowestPriceDate == null) {
-            throw new RuntimeException("No priced date found in calendar for 2026");
-        }
+    if (lowestPriceDate == null) {
+        throw new RuntimeException("No priced date found in calendar for 2026");
+    }
 
-        // Select departure date
-        lowestPriceDate.click();
+    //  IMPORTANT: Scroll inside calendar before click
+    ((JavascriptExecutor) driver).executeScript(
+            "arguments[0].scrollIntoView({block:'center'});",
+            lowestPriceDate
+    );
 
-        // Get fresh dates after selecting departure
-        List<WebElement> updatedDates = wait.until(
-                ExpectedConditions.visibilityOfAllElements(enabledDates)
+    wait.until(ExpectedConditions.elementToBeClickable(lowestPriceDate)).click();
+
+    // Re-fetch dates AFTER selecting departure
+    List<WebElement> updatedDates = wait.until(
+            ExpectedConditions.visibilityOfAllElements(enabledDates)
+    );
+
+    int departIndex = updatedDates.indexOf(lowestPriceDate);
+
+    if (departIndex + 3 < updatedDates.size()) {
+
+        WebElement returnDate = updatedDates.get(departIndex + 3);
+
+        // Scroll return date too
+        ((JavascriptExecutor) driver).executeScript(
+                "arguments[0].scrollIntoView({block:'center'});",
+                returnDate
         );
 
-        int departIndex = updatedDates.indexOf(lowestPriceDate);
+        wait.until(ExpectedConditions.elementToBeClickable(returnDate)).click();
 
-        // Select return date +3 days safely
-        if (departIndex + 3 < updatedDates.size()) {
-            updatedDates.get(departIndex + 3).click();
-        } else {
-            throw new RuntimeException("Return date not available");
-        }
+    } else {
+        throw new RuntimeException("Return date not available");
+    }
     }
 
     
